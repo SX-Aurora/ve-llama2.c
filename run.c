@@ -7,6 +7,7 @@
 #include <math.h>
 #include <string.h>
 #include <fcntl.h>
+#include <cblas.h>
 #if defined _WIN32
     #include "win.h"
 #else
@@ -186,7 +187,7 @@ void softmax(float* x, int size) {
     }
 }
 
-void matmul(float* xout, float* x, float* w, int n, int d) {
+void matmul_orig(float* xout, float* x, float* w, int n, int d) {
     // W (d,n) @ x (n,) -> xout (d,)
     // by far the most amount of time is spent inside this little function
     int i;
@@ -198,6 +199,12 @@ void matmul(float* xout, float* x, float* w, int n, int d) {
         }
         xout[i] = val;
     }
+}
+
+//void matmul_(int n, int d, float xout[d], float x[n], float w[d * n]) {
+void matmul(float* xout, float* x, float* w, int n, int d) {
+	// W (d,n) @ x (n,) -> xout (d,)
+	cblas_sgemv(CblasRowMajor, CblasNoTrans, d, n, 1.0, w, n, x, 1, 0.0, xout, 1);
 }
 
 void transformer(int token, int pos, Config* p, RunState* s, TransformerWeights* w) {
@@ -512,6 +519,7 @@ int compare(const void* a, const void* b) {
     return 0;
 }
 
+#pragma noinline
 int sample_topp(float* probabilities, int n, float topp, ProbIndex* probindex) {
     // top-p sampling (or "nucleus sampling") samples from the smallest set of
     // tokens that exceed probability topp. This way we never sample tokens that
