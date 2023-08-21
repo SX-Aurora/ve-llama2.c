@@ -217,7 +217,7 @@ void softmax(float* x, int size) {
     }
 }
 
-void matmul(float* xout, float* x, float* w, int n, int d) {
+void matmul_orig(float* xout, float* x, float* w, int n, int d) {
     // W (d,n) @ x (n,) -> xout (d,)
     // by far the most amount of time is spent inside this little function
     int i;
@@ -229,6 +229,33 @@ void matmul(float* xout, float* x, float* w, int n, int d) {
         }
         xout[i] = val;
     }
+}
+
+void matmul(float* xout, float* x, float* w, int n, int d) {
+    // W (d,n) @ x (n,) -> xout (d,)
+    // by far the most amount of time is spent inside this little function
+    #pragma omp parallel
+    {    
+        int nthr = omp_get_max_threads();
+        int ithr = omp_get_thread_num();
+        int block = (d + nthr - 1) / nthr;
+        int imin = ithr * block;
+        int imax = (ithr + 1) * block > d ? d : (ithr + 1) * block;
+        #pragma _NEC outerloop_unroll(8)
+        for (int i = imin; i < imax; i++) {
+            float val = 0.0f;
+            for (int j = 0; j < n; j++) {
+                val += w[i * n + j] * x[j];
+            }
+            xout[i] = val;
+        }
+    }
+}
+
+#include <cblas.h>
+void matmul_blas(float* xout, float* x, float* w, int n, int d) {
+	// W (d,n) @ x (n,) -> xout (d,)
+	cblas_sgemv(CblasRowMajor, CblasNoTrans, d, n, 1.0, w, n, x, 1, 0.0, xout, 1);
 }
 
 float* forward(Transformer* transformer, int token, int pos) {
@@ -260,6 +287,7 @@ float* forward(Transformer* transformer, int token, int pos) {
         matmul(s->v, s->xb, w->wv + l*dim*kv_dim, dim, kv_dim);
 
         // RoPE relative positional encoding: complex-valued rotate q and k in each head
+#if 0
         for (int i = 0; i < dim; i+=2) {
             int head_dim = i % head_size;
             float freq = 1.0f / powf(10000.0f, head_dim / (float)head_size);
@@ -275,6 +303,52 @@ float* forward(Transformer* transformer, int token, int pos) {
                 vec[i+1] = v0 * fci + v1 * fcr;
             }
         }
+#else
+        if (dim <= kv_dim) {
+            int rotn = 2;
+            for (int i = 0; i < dim; i+=2) {
+                int head_dim = i % head_size;
+                float freq = 1.0f / powf(10000.0f, head_dim / (float)head_size);
+                float val = pos * freq;
+                float fcr = cosf(val);
+                float fci = sinf(val);
+                for (int v = 0; v < 2; v++) {
+                    float* vec = v == 0 ? s->q : s->k; // the vector to rotate (query or key)
+                    float v0 = vec[i];
+                    float v1 = vec[i+1];
+                    vec[i]   = v0 * fcr - v1 * fci;
+                    vec[i+1] = v0 * fci + v1 * fcr;
+                }
+            }
+        } else {
+            for (int i = 0; i < kv_dim; i+=2) {
+                int head_dim = i % head_size;
+                float freq = 1.0f / powf(10000.0f, head_dim / (float)head_size);
+                float val = pos * freq;
+                float fcr = cosf(val);
+                float fci = sinf(val);
+                int rotn = 2; // how many vectors? 2 = q & k, 1 = q only
+                for (int v = 0; v < rotn; v++) {
+                    float* vec = v == 0 ? s->q : s->k; // the vector to rotate (query or key)
+                    float v0 = vec[i];
+                    float v1 = vec[i+1];
+                    vec[i]   = v0 * fcr - v1 * fci;
+                    vec[i+1] = v0 * fci + v1 * fcr;
+                }
+            }
+            for (int i = kv_dim; i < dim; i+=2) {
+                int head_dim = i % head_size;
+                float freq = 1.0f / powf(10000.0f, head_dim / (float)head_size);
+                float val = pos * freq;
+                float fcr = cosf(val);
+                float fci = sinf(val);
+                float v0 = s->q[i];
+                float v1 = s->q[i+1];
+                vec[i]   = v0 * fcr - v1 * fci;
+                vec[i+1] = v0 * fci + v1 * fcr;
+            }
+        }
+#endif
 
         // save key,value at this time step (pos) to our kv cache
         int loff = l * p->seq_len * kv_dim; // kv cache layer offset for convenience

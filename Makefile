@@ -1,6 +1,7 @@
 # choose your compiler, e.g. gcc/clang
 # example override to clang: make run CC=clang
 CC = gcc
+NCC = /opt/nec/ve/bin/ncc
 
 # the most basic way of building that is most likely to work on most systems
 .PHONY: run
@@ -44,6 +45,18 @@ rungnu:
 .PHONY: runompgnu
 runompgnu:
 	$(CC) -Ofast -fopenmp -std=gnu11 run.c  -lm  -o run
+
+# compile for VE
+#FTRACE = -ftrace
+.PHONY: runve
+runve: run.c
+        $(NCC) -O3 -report-all -ffast-math $(FTRACE) -proginf run.c -lm -o runve
+
+# compile for VE with openmp
+.PHONY: runompve
+runompve: run.c
+        $(NCC) -O3 -fopenmp -report-all -ffast-math $(FTRACE) -proginf run.c -lm \
+        -lcblas -lblas_openmp -o runompve
 
 # run all tests
 .PHONY: test
