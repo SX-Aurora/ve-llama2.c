@@ -342,8 +342,9 @@ float* forward(Transformer* transformer, int token, int pos) {
                 float val = pos * freq;
                 float fcr = cosf(val);
                 float fci = sinf(val);
-                float v0 = s->q[i];
-                float v1 = s->q[i+1];
+                float* vec = s->q; // the vector to rotate (query or key)
+                float v0 = vec[i];
+                float v1 = vec[i+1];
                 vec[i]   = v0 * fcr - v1 * fci;
                 vec[i+1] = v0 * fci + v1 * fcr;
             }

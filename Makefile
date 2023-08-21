@@ -50,13 +50,13 @@ runompgnu:
 #FTRACE = -ftrace
 .PHONY: runve
 runve: run.c
-        $(NCC) -O3 -report-all -ffast-math $(FTRACE) -proginf run.c -lm -o runve
+	$(NCC) -O3 -report-all -ffast-math $(FTRACE) -proginf run.c -lm -o runve
 
 # compile for VE with openmp
 .PHONY: runompve
 runompve: run.c
-        $(NCC) -O3 -fopenmp -report-all -ffast-math $(FTRACE) -proginf run.c -lm \
-        -lcblas -lblas_openmp -o runompve
+	$(NCC) -O3 -fopenmp -report-all -ffast-math $(FTRACE) -proginf run.c -lm \
+		-lcblas -lblas_openmp -o runompve
 
 # run all tests
 .PHONY: test
