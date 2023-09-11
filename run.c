@@ -217,7 +217,8 @@ void softmax(float* x, int size) {
     }
 }
 
-void matmul_orig(float* xout, float* x, float* w, int n, int d) {
+#ifndef _OPENMP
+void matmul(float* xout, float* x, float* w, int n, int d) {
     // W (d,n) @ x (n,) -> xout (d,)
     // by far the most amount of time is spent inside this little function
     int i;
@@ -230,7 +231,8 @@ void matmul_orig(float* xout, float* x, float* w, int n, int d) {
         xout[i] = val;
     }
 }
-
+#else
+if 1
 void matmul(float* xout, float* x, float* w, int n, int d) {
     // W (d,n) @ x (n,) -> xout (d,)
     // by far the most amount of time is spent inside this little function
@@ -251,7 +253,39 @@ void matmul(float* xout, float* x, float* w, int n, int d) {
         }
     }
 }
-
+#else
+void matmul(float* xout, float* x, float* w, int n, int d) {
+    int i;
+    #pragma omp parallel for private(i)
+    for (i = 0; i < d; i += 8) {
+        xout[i    ] = 0.0f;
+        xout[i + 1] = 0.0f;
+        xout[i + 2] = 0.0f;
+        xout[i + 3] = 0.0f;
+        xout[i + 4] = 0.0f;
+        xout[i + 5] = 0.0f;
+        xout[i + 6] = 0.0f;
+        xout[i + 7] = 0.0f;
+        for (int j = 0; j < n; j++) {
+            xout[i    ] += w[(i    ) * n + j] * x[j];
+            xout[i + 1] += w[(i + 1) * n + j] * x[j];
+            xout[i + 2] += w[(i + 2) * n + j] * x[j];
+            xout[i + 3] += w[(i + 3) * n + j] * x[j];
+            xout[i + 4] += w[(i + 3) * n + j] * x[j];
+            xout[i + 5] += w[(i + 3) * n + j] * x[j];
+            xout[i + 6] += w[(i + 3) * n + j] * x[j];
+            xout[i + 7] += w[(i + 3) * n + j] * x[j];
+        }
+    }
+    for (i = ((d + 7) / 8) * 8; i < d; i++) {
+        xout[i] = 0.0f;
+        for (int j = 0; j < n; j++) {
+            xout[i] += w[i * n + j] * x[j];
+        }
+    }
+}
+#endif
+#endif
 #include <cblas.h>
 void matmul_blas(float* xout, float* x, float* w, int n, int d) {
 	// W (d,n) @ x (n,) -> xout (d,)
