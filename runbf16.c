@@ -14,8 +14,13 @@
     #include <sys/mman.h>
 #endif
 
-#define matmul matmul_bf16
+#ifdef ROW_MEMORY_ORDER
+#define matmul sgemv_rmo_omp
+#else
+#define matmul sgemv_omp
+#endif
 typedef unsigned short bf16;
+
 // ----------------------------------------------------------------------------
 // Transformer model
 
@@ -250,6 +255,31 @@ void matmul_bf16(float* xout, float* x, bf16* w, int n, int d) {
     }
 }
 
+#ifndef ROW_MEMORY_ORDER
+void sgemv_omp(float* xout, float* x, bf16* w, int n, int d) {
+    #pragma omp parallel
+    {
+        int nthr = omp_get_max_threads();
+        int ithr = omp_get_thread_num();
+        int block = (d + nthr - 1) / nthr;
+        int imin = ithr * block;
+        int imax = (ithr + 1) * block > d ? d : (ithr + 1) * block;
+        sgemv_packed_bf16_unr(&xout[imin], x, &w[imin * n], n, imax - imin);
+    }
+}
+#else
+void sgemv_rmo_omp(float* xout, float* x, bf16* w, int n, int d) {
+    #pragma omp parallel
+    {
+        int nthr = omp_get_max_threads();
+        int ithr = omp_get_thread_num();
+        int block = (d + nthr - 1) / nthr;
+        int imin = ithr * block;
+        int imax = (ithr + 1) * block > d ? d : (ithr + 1) * block;
+        sgemv_bf16_rmo(&xout[imin], x, &w[imin], n, d, imax - imin);
+    }
+}
+#endif
 float* forward(Transformer* transformer, int token, int pos) {
 
     // a few convenience variables
@@ -279,20 +309,31 @@ float* forward(Transformer* transformer, int token, int pos) {
         matmul(s->v, s->xb, w->wv + l*dim*kv_dim, dim, kv_dim);
 
         // RoPE relative positional encoding: complex-valued rotate q and k in each head
-        for (int i = 0; i < dim; i+=2) {
+        for (int i = 0; i < kv_dim; i+=2) {
             int head_dim = i % head_size;
-            float freq = 1.0f / powf(10000.0f, head_dim / (float)head_size);
+            float freq = 1.0f/powf(10000.0f,head_dim/(float)head_size);
             float val = pos * freq;
             float fcr = cosf(val);
             float fci = sinf(val);
-            int rotn = i < kv_dim ? 2 : 1; // how many vectors? 2 = q & k, 1 = q only
-            for (int v = 0; v < rotn; v++) {
-                float* vec = v == 0 ? s->q : s->k; // the vector to rotate (query or key)
+            for (int v = 0; v < 2; v++) {
+                float* vec = v == 0 ? s->q : s->k;
                 float v0 = vec[i];
                 float v1 = vec[i+1];
                 vec[i]   = v0 * fcr - v1 * fci;
                 vec[i+1] = v0 * fci + v1 * fcr;
             }
+        }
+        for (int i = kv_dim; i < dim; i+=2) {
+            int head_dim = i % head_size;
+            float freq = 1.0f/powf(10000.0f,head_dim/(float)head_size);
+            float val = pos * freq;
+            float fcr = cosf(val);
+            float fci = sinf(val);
+            float* vec = s->q;
+            float v0 = vec[i];
+            float v1 = vec[i+1];
+            vec[i]   = v0 * fcr - v1 * fci;
+            vec[i+1] = v0 * fci + v1 * fcr;
         }
 
         // save key,value at this time step (pos) to our kv cache

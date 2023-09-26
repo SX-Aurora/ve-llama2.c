@@ -28,6 +28,8 @@ from torch import nn
 
 from model import ModelArgs, Transformer
 
+row_memory_order = False
+
 # -----------------------------------------------------------------------------
 # common utilities
 
@@ -39,11 +41,16 @@ def serialize_fp32(file, tensor):
 
 def serialize_bf16(file, tensor):
     """ writes one bf16 tensor to file that is open in wb mode """
-    d = tensor.detach().cpu().view(-1)
+    global row_memory_order
+    d = tensor.detach().cpu()
     if d.dtype == torch.bfloat16:
         d = d.view(torch.int16).numpy()
     else:
         d = d.to(torch.bfloat16).view(torch.int16).numpy()
+    if row_memory_order:
+        d = np.transpose(d)
+        d = np.ascontiguousarray(d)
+    d = d.flatten()
     b = struct.pack(f'{len(d)}h', *d)
     file.write(b)
 
@@ -470,9 +477,13 @@ def load_hf_model(model_path):
 # API entrypoint
 
 def model_export(model, filepath, version):
+    global row_memory_order
     if version == 0:
         legacy_export(model, filepath)
     elif version == -1:
+        legacy_export_bf16(model, filepath)
+    elif version == -2:
+        row_memory_order = True
         legacy_export_bf16(model, filepath)
     elif version == 1:
         version1_export(model, filepath)

@@ -2,6 +2,10 @@
 # example override to clang: make run CC=clang
 CC = gcc
 
+# Vector Engine compiler
+NCC = /opt/nec/ve/bin/ncc
+NCCFLAGS = -O3 -fopenmp -report-all -ffast-math -proginf
+
 # the most basic way of building that is most likely to work on most systems
 .PHONY: run
 run: run.c
@@ -48,6 +52,18 @@ rungnu:
 .PHONY: runompgnu
 runompgnu:
 	$(CC) -Ofast -fopenmp -std=gnu11 run.c  -lm  -o run
+
+sgemv-intrinsics/sgemv_packed_bf16_unr.o:
+	git clone https://github.com/efocht/sgemv-intrinsics.git
+
+sgemv-intrinsics/sgemv_bf16_rmo.o:
+	git clone https://github.com/efocht/sgemv-intrinsics.git
+
+ve-runbf16: runbf16.c sgemv-intrinsics/sgemv_packed_bf16_unr.o
+	$(NCC) $(NCCFLAGS) -o $@ $^ -lm
+
+ve-runbf16-rmo: runbf16.c sgemv-intrinsics/sgemv_bf16_rmo.o
+	$(NCC) $(NCCFLAGS) -DROW_MEMORY_ORDER=1 -o $@ $^ -lm
 
 # run all tests
 .PHONY: test

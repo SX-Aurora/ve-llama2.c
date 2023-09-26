@@ -10,6 +10,50 @@ As the architecture is identical, you can also load and inference Meta's Llama 2
 
 Please note that this repo started recently as a fun weekend project: I took my earlier [nanoGPT](https://github.com/karpathy/nanoGPT), tuned it to implement the Llama-2 architecture instead of GPT-2, and the meat of it was writing the C inference engine in [run.c](run.c). So the project is young and moving quickly. Hat tip to the awesome [llama.cpp](https://github.com/ggerganov/llama.cpp) for inspiring this project. Compared to llama.cpp, I wanted something super simple, minimal, and educational so I chose to hard-code the Llama 2 architecture and just roll one inference file of pure C with no dependencies.
 
+## NEC SX-Aurora Vector Engine support
+
+This branch contains support for the SX-Aurora Vector Engine (VE), a device with 48GB HBM2 memory (VE1/2) or 96GB HBM2e memory (VE3). VE1/2 do not support nativey the `bfloat16` data format, but the functionality provided here emulates it and uses `bfloat16` weight matrix data in order to save RAM and allow for using larger models. Only the weights used in matrix multiplications are stored in `bfloat16`, the other weights are stored in 32 bit `float`.
+
+### Convert the weights
+
+`llama2.c` needs the large language model checkpoint in a special format that is easy to load and map in the C program. The `export.py` program supports various checkpoint formats (model checkpoints, meta llama and huggingface). The exported binary format is selected with the option `--version`, the trwo formats interesting for the VE are:
+* `--version -1` : legacy llama2.c format with weight matrix data stored in `bfloat16` format. The matrices are left in column-memory-order.
+* `--version -2` . legacy llama2.c format with weight matrix data stored in `bfloat16` format and row-memory-order (transposed). This format requires a different matrix-vector multiplication function compared to the original llama2.c.
+
+Example: export meta-llama Llama 2 7B model to bf16 format
+```
+python export.py --version -1 --meta-llama ../Llama-2-7b Llama-2-7b.bf16.bin
+```
+
+Example: export meta-llama Llama 2 13B chat model to bf16 format with row memory order matrices:
+```
+python export.py --version -2 --meta-llama ../Llama-2-13b-chat Llama-2-13b-chat.bf16.rmo.bin
+```
+
+These exports take around 10 minutes.
+
+### Build and run VE executables
+
+The build process will `git clone` the repository https://github.com/efocht/sgemv-intrinsics which contains tuned matrix-vector multiplication functions using `bfloat16` matrix data for the VE1 and VE2 models. These models do not actually support the `bfloat16` data format. The VE3 models do support loading directly `bfloat16` data but the exact assembler instruction doing the conversion is not yet known to the author. VE3 will work with the current variants but will have higher performance with the new instructions.
+
+Build the normal `bfloat16` executable using column-memory-order matrices:
+```
+make ve-runbf16
+```
+
+Build the `bfloat16` executable using row-memory-order matrices:
+```
+make ve-runbf16-rmo
+```
+
+Execution is done exactly like for the `run` binary:
+```
+./ve-runbf16 Llama-2-7b.bf16.bin -t 0.7 -s 1234 -n 100 -i "The solar system is"
+```
+On the 7B llama2 models the VE2 runs with ~40 tokens / s for the normal, column-memory-order matrix formats and 
+~50 tokens / s for the row-memory-order matrix format.
+
+
 ## feel the magic
 
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/karpathy/llama2.c/blob/master/run.ipynb)
