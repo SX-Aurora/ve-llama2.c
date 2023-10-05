@@ -62,8 +62,8 @@ sgemv-intrinsics/sgemv_bf16_rmo.o:
 ve-runbf16: runbf16.c sgemv-intrinsics/sgemv_packed_bf16_unr.o
 	$(NCC) $(NCCFLAGS) -o $@ $^ -lm
 
-ve-runbf16-rmo: runbf16.c sgemv-intrinsics/sgemv_bf16_rmo.o
-	$(NCC) $(NCCFLAGS) -DROW_MEMORY_ORDER=1 -o $@ $^ -lm
+ve-runbf16-cmo: runbf16.c sgemv-intrinsics/sgemv_bf16_cmo.o
+	$(NCC) $(NCCFLAGS) -DCOLUMN_MEMORY_ORDER=1 -o $@ $^ -lm
 
 # run all tests
 .PHONY: test
