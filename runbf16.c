@@ -14,8 +14,8 @@
     #include <sys/mman.h>
 #endif
 
-#ifdef ROW_MEMORY_ORDER
-#define matmul sgemv_rmo_omp
+#ifdef COLUMN_MEMORY_ORDER
+#define matmul sgemv_cmo_omp
 #else
 #define matmul sgemv_omp
 #endif
@@ -102,6 +102,10 @@ void malloc_run_state(RunState* s, Config* p) {
      || !s->k || !s->v || !s->att || !s->logits || !s->key_cache
      || !s->value_cache) {
         fprintf(stderr, "malloc failed!\n");
+        fprintf(stderr, "x=%p xb=%p xb2=%p hb=%p hb2=%p q=%p k=%p v=%p att=%p "
+        "logits=%p key_cache=%p value_cache=%p\n", s->x, s->xb, s->xb2, s->hb,
+        s->hb2, s->q, s->k, s->v, s->att, s->logits, s->key_cache, s->value_cache);
+        fprintf(stderr, "n_layers=%d seq_len=%d kv_dim=%d\n", p->n_layers, p->seq_len, kv_dim);
         exit(EXIT_FAILURE);
     }
 }
@@ -268,7 +272,7 @@ void sgemv_omp(float* xout, float* x, bf16* w, int n, int d) {
     }
 }
 #else
-void sgemv_rmo_omp(float* xout, float* x, bf16* w, int n, int d) {
+void sgemv_cmo_omp(float* xout, float* x, bf16* w, int n, int d) {
     #pragma omp parallel
     {
         int nthr = omp_get_max_threads();
@@ -276,7 +280,7 @@ void sgemv_rmo_omp(float* xout, float* x, bf16* w, int n, int d) {
         int block = (d + nthr - 1) / nthr;
         int imin = ithr * block;
         int imax = (ithr + 1) * block > d ? d : (ithr + 1) * block;
-        sgemv_bf16_rmo(&xout[imin], x, &w[imin], n, d, imax - imin);
+        sgemv_bf16_cmo(&xout[imin], x, &w[imin], n, d, imax - imin);
     }
 }
 #endif
