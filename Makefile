@@ -56,7 +56,7 @@ runompgnu:
 sgemv-intrinsics/sgemv_packed_bf16_unr.o:
 	git clone https://github.com/efocht/sgemv-intrinsics.git
 
-sgemv-intrinsics/sgemv_bf16_rmo.o:
+sgemv-intrinsics/sgemv_bf16_cmo.o:
 	git clone https://github.com/efocht/sgemv-intrinsics.git
 
 ve-runbf16: runbf16.c sgemv-intrinsics/sgemv_packed_bf16_unr.o

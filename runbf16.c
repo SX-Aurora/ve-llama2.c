@@ -259,7 +259,7 @@ void matmul_bf16(float* xout, float* x, bf16* w, int n, int d) {
     }
 }
 
-#ifndef ROW_MEMORY_ORDER
+#ifndef COLUMN_MEMORY_ORDER
 void sgemv_omp(float* xout, float* x, bf16* w, int n, int d) {
     #pragma omp parallel
     {
