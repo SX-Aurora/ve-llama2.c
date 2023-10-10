@@ -57,10 +57,13 @@ sgemv-intrinsics/sgemv_%.o:
 	git clone https://github.com/efocht/sgemv-intrinsics.git
 
 ve-runbf16: runbf16.c sgemv-intrinsics/sgemv_packed_bf16_unr.o
-	$(NCC) $(NCCFLAGS) -o $@ $^ -lm
+	$(NCC) $(NCCFLAGS) -march=ve1 -o $@ $^ -lm
 
 ve-runbf16-cmo: runbf16.c sgemv-intrinsics/sgemv_bf16_cmo.o
-	$(NCC) $(NCCFLAGS) -DCOLUMN_MEMORY_ORDER=1 -o $@ $^ -lm
+	$(NCC) $(NCCFLAGS) -march=ve1 -DCOLUMN_MEMORY_ORDER=1 -o $@ $^ -lm
+
+ve-runbf16-ve3: runbf16.c sgemv-intrinsics/sgemv_bf16_ve3.o
+	$(NCC) $(NCCFLAGS) -march=ve3 -mfp16-format=bfloat -o $@ $^ -lm
 
 ve-runbf16-ve3-cmo: runbf16.c sgemv-intrinsics/sgemv_bf16_ve3_cmo.o
 	$(NCC) $(NCCFLAGS) -march=ve3 -mfp16-format=bfloat -DCOLUMN_MEMORY_ORDER=1 -o $@ $^ -lm
