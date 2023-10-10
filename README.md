@@ -53,6 +53,8 @@ Execution is done exactly like for the `run` binary:
 On the 7B llama2 models the VE2 runs with ~40 tokens / s for the normal, row-memory-order matrix formats and 
 ~50 tokens / s for the column-memory-order matrix format.
 
+Check out the blog article https://sx-aurora.github.io/posts/Llama2-on-VE-bf16/ for details and a more comprehensive performance discussion.
+
 
 ## feel the magic
 

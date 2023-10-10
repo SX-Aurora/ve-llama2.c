@@ -17,7 +17,11 @@
 #ifdef COLUMN_MEMORY_ORDER
 #define matmul sgemv_cmo_omp
 #else
+#ifdef __VE_ARCH_3__
+#define matmul sgemv_bf16_ve3
+#else
 #define matmul sgemv_omp
+#endif
 #endif
 typedef unsigned short bf16;
 
@@ -280,7 +284,11 @@ void sgemv_cmo_omp(float* xout, float* x, bf16* w, int n, int d) {
         int block = (d + nthr - 1) / nthr;
         int imin = ithr * block;
         int imax = (ithr + 1) * block > d ? d : (ithr + 1) * block;
+#ifdef __VE_ARCH_3__
+        sgemv_bf16_ve3_cmo(&xout[imin], x, &w[imin], n, d, imax - imin);
+#else
         sgemv_bf16_cmo(&xout[imin], x, &w[imin], n, d, imax - imin);
+#endif
     }
 }
 #endif
