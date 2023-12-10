@@ -293,7 +293,7 @@ void sgemv_cmo_omp(float* xout, float* x, bf16* w, int n, int d) {
 }
 #define CHUNK 4096
 // Parallelize along n dimension
-void sgemv_cmo_omp2(float* xout, float* x, bfloat16* w, int n, int d) {
+void sgemv_cmo_omp2(float* xout, float* x, bf16* w, int n, int d) {
     int nthr = omp_get_max_threads();
     float tmp[16][CHUNK];
     for (int i = 0; i < d; i += CHUNK) {
