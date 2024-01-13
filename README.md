@@ -32,6 +32,11 @@ python export.py --version -2 --meta-llama ../Llama-2-13b-chat Llama-2-13b-chat.
 
 These exports take around 10 minutes.
 
+### Or download the converted weights
+
+Some readily converted weights for SX-Aurora have been uploaded to [Huggingface](https://huggingface.co/efocht/ve-llama2.c-bins/tree/main). Download any of them by clicking onto the download symbol or the "LFS" icon.
+
+
 ### Build and run VE executables
 
 The build process will `git clone` the repository https://github.com/efocht/sgemv-intrinsics which contains tuned matrix-vector multiplication functions using `bfloat16` matrix data for the VE1 and VE2 models. These models do not actually support the `bfloat16` data format. The VE3 models do support loading directly `bfloat16` data but the exact assembler instruction doing the conversion is not yet known to the author. VE3 will work with the current variants but will have higher performance with the new instructions.

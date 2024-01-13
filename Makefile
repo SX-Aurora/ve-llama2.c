@@ -4,7 +4,7 @@ CC = gcc
 
 # Vector Engine compiler
 NCC = /opt/nec/ve/bin/ncc
-NCCFLAGS = -O3 -fopenmp -report-all -ffast-math -proginf
+NCCFLAGS = -O3 -fopenmp -report-all -ffast-math -proginf 
 
 # the most basic way of building that is most likely to work on most systems
 .PHONY: run
@@ -59,7 +59,7 @@ sgemv-intrinsics/sgemv_%.o:
 ve-runbf16: runbf16.c sgemv-intrinsics/sgemv_packed_bf16_unr.o
 	$(NCC) $(NCCFLAGS) -march=ve1 -o $@ $^ -lm
 
-ve-runbf16-cmo: runbf16.c sgemv-intrinsics/sgemv_bf16_cmo.o
+ve-runbf16-cmo: runbf16.c sgemv-intrinsics/sgemv_bf16_cmo.o sgemv-intrinsics/sgemv_bf16_cmo_n.o
 	$(NCC) $(NCCFLAGS) -march=ve1 -DCOLUMN_MEMORY_ORDER=1 -o $@ $^ -lm
 
 ve-runbf16-ve3: runbf16.c sgemv-intrinsics/sgemv_bf16_ve3.o
