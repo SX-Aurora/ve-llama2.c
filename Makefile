@@ -4,7 +4,7 @@ CC = gcc
 
 # Vector Engine compiler
 NCC = /opt/nec/ve/bin/ncc
-NCCFLAGS = -O3 -fopenmp -report-all -ffast-math -proginf
+NCCFLAGS = -O3 -fopenmp -report-all -ffast-math -proginf 
 
 # the most basic way of building that is most likely to work on most systems
 .PHONY: run
